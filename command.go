@@ -12,6 +12,9 @@ type Command struct {
 	Mute               *CommandMute
 	SetVolume          *CommandSetVolume
 	AdjustVolume       *CommandSetVolumeRelative
+	SetInput           *CommandSetInput
+	NextInput          *CommandNextInput
+	PreviousInput      *CommandPreviousInput
 
 	Unparsed *CommandUnparsed
 }
@@ -73,4 +76,20 @@ type CommandSetVolume struct {
 // See https://developers.google.com/assistant/smarthome/traits/volume
 type CommandSetVolumeRelative struct {
 	Amount int `json:"relativeSteps"`
+}
+
+// CommandSetInput requests the device input be changed.
+// See https://developers.google.com/assistant/smarthome/traits/inputselector
+type CommandSetInput struct {
+	NewInput string `json:"newInput"`
+}
+
+// CommandNextInput requests the device input be changed to the next logical one.
+// See https://developers.google.com/assistant/smarthome/traits/inputselector
+type CommandNextInput struct {
+}
+
+// CommandPreviousInput requests the device input be changed to the previous logical one.
+// See https://developers.google.com/assistant/smarthome/traits/inputselector
+type CommandPreviousInput struct {
 }

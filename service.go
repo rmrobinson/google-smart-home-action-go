@@ -46,7 +46,7 @@ type AccessTokenValidator interface {
 type Provider interface {
 	Sync(context.Context) ([]*Device, error)
 	Disconnect(context.Context) error
-	Query(context.Context, *QueryRequest) error
+	Query(context.Context, *QueryRequest) (map[string]DeviceState, error)
 	Execute(context.Context, *ExecuteRequest) error
 }
 

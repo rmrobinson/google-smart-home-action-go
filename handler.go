@@ -83,7 +83,6 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 	switch fulfillmentReq.Inputs[0].Intent {
 	case "action.devices.SYNC":
 		devices, err := s.provider.Sync(r.Context())
-
 		if err != nil {
 			s.logger.Info("sync error",
 				zap.Error(err),
@@ -119,9 +118,31 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 			})
 		}
 
-		s.provider.Query(r.Context(), queryReq)
+		deviceState, err := s.provider.Query(r.Context(), queryReq)
+		if err != nil {
+			s.logger.Info("query error",
+				zap.Error(err),
+			)
 
-		w.Write([]byte("{}"))
+			// TODO: clean this up possibly using better error handling.
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Fail to query"))
+			return
+		}
+
+		queryResp := &queryResponse{
+			RequestID: fulfillmentReq.RequestID,
+		}
+		queryResp.Payload.Devices = deviceState
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(queryResp)
+		if err != nil {
+			s.logger.Info("error serializing after writing ok",
+				zap.Error(err),
+			)
+		}
 		return
 	case "action.devices.EXECUTE":
 		s.provider.Sync(r.Context())
@@ -219,4 +240,93 @@ type syncResponse struct {
 		DebugInfo string    `json:"debugString,omitempty"`
 		Devices   []*Device `json:"devices,omitempty"`
 	} `json:"payload"`
+}
+
+type queryResponse struct {
+	RequestID string `json:"requestId,omitempty"`
+	Payload   struct {
+		Devices map[string]DeviceState `json:"devices"`
+	} `json:"payload"`
+}
+
+// MarshalJSON is a custom JSON serializer for our Device
+func (d Device) MarshalJSON() ([]byte, error) {
+	dr := deviceRaw{}
+
+	dr.ID = d.ID
+	dr.Type = d.Type
+	for trait := range d.Traits {
+		dr.Traits = append(dr.Traits, trait)
+	}
+	dr.Name.DefaultNames = d.Name.DefaultNames
+	dr.Name.Name = d.Name.Name
+	dr.Name.Nicknames = d.Name.Nicknames
+	dr.WillReportState = d.WillReportState
+	dr.RoomHint = d.RoomHint
+	dr.Attributes = d.attributes
+	dr.DeviceInfo.Manufacturer = d.DeviceInfo.Manufacturer
+	dr.DeviceInfo.Model = d.DeviceInfo.Model
+	dr.DeviceInfo.HwVersion = d.DeviceInfo.HwVersion
+	dr.DeviceInfo.SwVersion = d.DeviceInfo.SwVersion
+	for _, otherDeviceID := range d.OtherDeviceIDs {
+		dr.OtherDeviceIDs = append(dr.OtherDeviceIDs, otherDeviceIDraw{
+			AgentID:  otherDeviceID.AgentID,
+			DeviceID: otherDeviceID.DeviceID,
+		})
+	}
+	dr.CustomData = d.CustomData
+
+	return json.Marshal(dr)
+}
+
+type otherDeviceIDraw struct {
+	AgentID  string `json:"agentId,omitempty"`
+	DeviceID string `json:"deviceId,omitempty"`
+}
+
+// Device represents a single provider-supplied device profile.
+type deviceRaw struct {
+	// ID of the device
+	ID string `json:"id,omitempty"`
+
+	// Type of the device.
+	// See https://developers.google.com/assistant/smarthome/guides is a list of possible types
+	Type string `json:"type,omitempty"`
+
+	// Traits of the device.
+	// See https://developers.google.com/assistant/smarthome/traits for a list of possible traits
+	// The set of assigned traits will dictate which actions can be performed on the device
+	Traits []string `json:"traits,omitempty"`
+
+	// Name of the device.
+	Name struct {
+		// DefaultNames (not user settable)
+		DefaultNames []string `json:"defaultNames,omitempty"`
+		// Name supplied by the user for display purposes
+		Name string `json:"name,omitempty"`
+		// Nicknames given to this, should a user have multiple ways to refer to the device
+		Nicknames []string `json:"nicknames,omitempty"`
+	} `json:"name,omitempty"`
+
+	// WillReportState using the ReportState API (should be true)
+	WillReportState bool `json:"willReportState"`
+
+	// RoomHint guides Google as to which room this device is in
+	RoomHint string `json:"roomHint,omitempty"`
+
+	// Attributes linked to the defined traits
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
+
+	// DeviceInfo that is physically defined
+	DeviceInfo struct {
+		Manufacturer string `json:"manufacturer,omitempty"`
+		Model        string `json:"model,omitempty"`
+		HwVersion    string `json:"hwVersion,omitempty"`
+		SwVersion    string `json:"swVersion,omitempty"`
+	} `json:"deviceInfo,omitempty"`
+
+	OtherDeviceIDs []otherDeviceIDraw `json:"otherDeviceIds,omitempty"`
+
+	// CustomData specified which will be included unmodified in subsequent requests.
+	CustomData map[string]interface{} `json:"customData,omitempty"`
 }

@@ -21,7 +21,10 @@ type testProvider struct {
 	syncResp []*Device
 	syncErr  error
 
-	queryReq   *QueryRequest
+	queryReq  *QueryRequest
+	queryResp map[string]DeviceState
+	queryErr  error
+
 	executeReq *ExecuteRequest
 }
 
@@ -33,9 +36,9 @@ func (tp *testProvider) Disconnect(context.Context) error {
 	return nil
 }
 
-func (tp *testProvider) Query(_ context.Context, req *QueryRequest) error {
+func (tp *testProvider) Query(_ context.Context, req *QueryRequest) (map[string]DeviceState, error) {
 	tp.queryReq = req
-	return nil
+	return tp.queryResp, tp.queryErr
 }
 
 func (tp *testProvider) Execute(_ context.Context, req *ExecuteRequest) error {
@@ -49,9 +52,7 @@ func TestGoogleFulfillmentHandlerSync(t *testing.T) {
 	authenticator := &testAuthenticator{}
 	provider := &testProvider{}
 
-	d1 := NewDevice()
-	d1.ID = "123"
-	d1.Type = "action.devices.types.OUTLET"
+	d1 := NewOutlet("123")
 	d1.Name = DeviceName{
 		DefaultNames: []string{
 			"My Outlet 1234",
@@ -79,11 +80,8 @@ func TestGoogleFulfillmentHandlerSync(t *testing.T) {
 		"barValue": true,
 		"bazValue": "foo",
 	}
-	d1.AddOnOff(false, false)
 
-	d2 := NewDevice()
-	d2.ID = "456"
-	d2.Type = "action.devices.types.LIGHT"
+	d2 := NewLight("456")
 	d2.Name = DeviceName{
 		DefaultNames: []string{
 			"lights out inc. bulb A19 color hyperglow",
@@ -106,7 +104,7 @@ func TestGoogleFulfillmentHandlerSync(t *testing.T) {
 		"barValue": false,
 		"bazValue": "bar",
 	}
-	d2.AddOnOff(false, false).AddBrightness(false).AddColourSetting(RGB, false).AddColourTemperatureSetting(2000, 9000, false)
+	d2.AddBrightnessTrait(false).AddColourTrait(RGB, false).AddColourTemperatureTrait(2000, 9000, false)
 
 	provider.syncResp = []*Device{d1, d2}
 
