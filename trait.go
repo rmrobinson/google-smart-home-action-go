@@ -8,10 +8,19 @@ type DeviceState struct {
 	state map[string]interface{}
 }
 
+// NewDeviceState creates a new device state to be added to as defined by the relevant traits on a device.
+func NewDeviceState(online bool, status string) DeviceState {
+	return DeviceState{
+		Online: online,
+		Status: status,
+		state:  map[string]interface{}{},
+	}
+}
+
 // RecordBrightness adds the current brightness to the device.
 // Should only be applied to devices with the Brightness trait
 // See https://developers.google.com/assistant/smarthome/traits/brightness
-func (ds *DeviceState) RecordBrightness(brightness int) *DeviceState {
+func (ds DeviceState) RecordBrightness(brightness int) DeviceState {
 	ds.state["brightness"] = brightness
 	return ds
 }
@@ -19,7 +28,7 @@ func (ds *DeviceState) RecordBrightness(brightness int) *DeviceState {
 // RecordColorTemperature adds the current color temperature (in Kelvin) to the device.
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
-func (ds *DeviceState) RecordColorTemperature(temperatureK int) *DeviceState {
+func (ds DeviceState) RecordColorTemperature(temperatureK int) DeviceState {
 	ds.state["color"] = map[string]interface{}{
 		"temperatureK": temperatureK,
 	}
@@ -29,7 +38,7 @@ func (ds *DeviceState) RecordColorTemperature(temperatureK int) *DeviceState {
 // RecordColorRGB adds the current color in RGB to the device.
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
-func (ds *DeviceState) RecordColorRGB(spectrumRgb int) *DeviceState {
+func (ds DeviceState) RecordColorRGB(spectrumRgb int) DeviceState {
 	ds.state["color"] = map[string]interface{}{
 		"spectrumRgb": spectrumRgb,
 	}
@@ -39,7 +48,7 @@ func (ds *DeviceState) RecordColorRGB(spectrumRgb int) *DeviceState {
 // RecordColorHSV adds the current color in HSV to the device.
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
-func (ds *DeviceState) RecordColorHSV(hue float64, saturation float64, value float64) *DeviceState {
+func (ds DeviceState) RecordColorHSV(hue float64, saturation float64, value float64) DeviceState {
 	ds.state["color"] = map[string]interface{}{
 		"spectrumHsv": map[string]interface{}{
 			"hue":        hue,
@@ -53,16 +62,25 @@ func (ds *DeviceState) RecordColorHSV(hue float64, saturation float64, value flo
 // RecordInput adds the current input active to the device.
 // Should only be applied to devices with the InputSelector trait
 // See https://developers.google.com/assistant/smarthome/traits/inputselector
-func (ds *DeviceState) RecordInput(input string) *DeviceState {
+func (ds DeviceState) RecordInput(input string) DeviceState {
 	ds.state["input"] = input
 	return ds
 }
 
 // RecordOnOff adds the current on/off state to the device.
 // Should only be applied to devices with the OnOff trait
-// See https://developers.google.com/assistant/smarthome/traits/brightness
-func (ds *DeviceState) RecordOnOff(on int) *DeviceState {
+// See https://developers.google.com/assistant/smarthome/traits/onoff
+func (ds DeviceState) RecordOnOff(on bool) DeviceState {
 	ds.state["on"] = on
+	return ds
+}
+
+// RecordVolume adds the current volume state to the device.
+// Should only be applied to devices with the Volume trait
+// See https://developers.google.com/assistant/smarthome/traits/volume
+func (ds DeviceState) RecordVolume(volume int, isMuted bool) DeviceState {
+	ds.state["currentVolume"] = volume
+	ds.state["isMuted"] = isMuted
 	return ds
 }
 

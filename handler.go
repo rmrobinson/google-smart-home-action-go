@@ -118,7 +118,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 			})
 		}
 
-		deviceState, err := s.provider.Query(r.Context(), queryReq)
+		deviceStates, err := s.provider.Query(r.Context(), queryReq)
 		if err != nil {
 			s.logger.Info("query error",
 				zap.Error(err),
@@ -133,7 +133,12 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		queryResp := &queryResponse{
 			RequestID: fulfillmentReq.RequestID,
 		}
-		queryResp.Payload.Devices = deviceState
+		queryResp.Payload.Devices = map[string]map[string]interface{}{}
+		for deviceID, deviceState := range deviceStates {
+			deviceState.state["online"] = deviceState.Online
+			deviceState.state["status"] = deviceState.Status
+			queryResp.Payload.Devices[deviceID] = deviceState.state
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -245,7 +250,7 @@ type syncResponse struct {
 type queryResponse struct {
 	RequestID string `json:"requestId,omitempty"`
 	Payload   struct {
-		Devices map[string]DeviceState `json:"devices"`
+		Devices map[string]map[string]interface{} `json:"devices"`
 	} `json:"payload"`
 }
 
