@@ -20,19 +20,44 @@ type DeviceArg struct {
 	CustomData map[string]interface{}
 }
 
+// CommandArg contains the fields used to execute a change on a set of devices.
+// Only one of the various pointers in Command should be set per command.
+type CommandArg struct {
+	TargetDevices []DeviceArg
+	Commands      []Command
+}
+
+// SyncResponse contains the set of devices to supply to the Google Smart Home Action when setting up.
+type SyncResponse struct {
+	Devices []*Device
+}
+
 // QueryRequest includes what is being asked for by the Google Smart Home Action when querying.
-// The customData is a JSON object originally returned during the Sync operation.
 type QueryRequest struct {
 	Devices []DeviceArg
 }
 
-// ExecuteRequest includes what is being asked for by the Google Smart Home Action when making a change.
+// QueryResponse includes what should be returned in response to the query to the Google Home Smart Action.
+// The States map should have the same IDs supplied in the request.
+type QueryResponse struct {
+	States map[string]DeviceState
+}
+
+// ExecuteRequest includes what is being asked for by the Google Assistant when making a change.
 // The customData is a JSON object originally returned during the Sync operation.
 type ExecuteRequest struct {
-	Commands []struct {
-		TargetDevices []DeviceArg
-		Params        Command
-	} `json:"commands"`
+	Commands []CommandArg
+}
+
+// ExecuteResponse includes the results of an Execute command to be sent back to the Google home graph after an execute.
+// Between the UpdatedDevices and FailedDevices maps all device IDs in the Execute request should be accounted for.
+type ExecuteResponse struct {
+	UpdatedState   DeviceState
+	UpdatedDevices []string
+	OfflineDevices []string
+	FailedDevices  map[string]struct {
+		Devices []string
+	}
 }
 
 // AccessTokenValidator allows for the auth token supplied by Google to be validated.
@@ -44,10 +69,10 @@ type AccessTokenValidator interface {
 
 // Provider exposes methods that can be invoked by the Google Smart Home Action intents
 type Provider interface {
-	Sync(context.Context) ([]*Device, error)
+	Sync(context.Context) (*SyncResponse, error)
 	Disconnect(context.Context) error
-	Query(context.Context, *QueryRequest) (map[string]DeviceState, error)
-	Execute(context.Context, *ExecuteRequest) error
+	Query(context.Context, *QueryRequest) (*QueryResponse, error)
+	Execute(context.Context, *ExecuteRequest) (*ExecuteResponse, error)
 }
 
 // Service links together the updates coming from the different sources and ensures they are consistent.

@@ -12,10 +12,14 @@ type DeviceName struct {
 
 // DeviceInfo contains different properties of the device
 type DeviceInfo struct {
+	// Manufacturer of the device
 	Manufacturer string
-	Model        string
-	HwVersion    string
-	SwVersion    string
+	// Model of the device
+	Model string
+	// HwVersion of the device
+	HwVersion string
+	// SwVersion of the device
+	SwVersion string
 }
 
 // OtherDeviceID contains alternative ways to identify this device.

@@ -82,7 +82,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 
 	switch fulfillmentReq.Inputs[0].Intent {
 	case "action.devices.SYNC":
-		devices, err := s.provider.Sync(r.Context())
+		pSyncResp, err := s.provider.Sync(r.Context())
 		if err != nil {
 			s.logger.Info("sync error",
 				zap.Error(err),
@@ -98,7 +98,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 			RequestID: fulfillmentReq.RequestID,
 		}
 		syncResp.Payload.UserID = userID
-		syncResp.Payload.Devices = devices
+		syncResp.Payload.Devices = pSyncResp.Devices
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -110,15 +110,15 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	case "action.devices.QUERY":
-		queryReq := &QueryRequest{}
+		pQueryReq := &QueryRequest{}
 		for _, device := range fulfillmentReq.Inputs[0].Query.Devices {
-			queryReq.Devices = append(queryReq.Devices, DeviceArg{
+			pQueryReq.Devices = append(pQueryReq.Devices, DeviceArg{
 				ID:         device.ID,
 				CustomData: device.CustomData,
 			})
 		}
 
-		deviceStates, err := s.provider.Query(r.Context(), queryReq)
+		pQueryResp, err := s.provider.Query(r.Context(), pQueryReq)
 		if err != nil {
 			s.logger.Info("query error",
 				zap.Error(err),
@@ -134,10 +134,10 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 			RequestID: fulfillmentReq.RequestID,
 		}
 		queryResp.Payload.Devices = map[string]map[string]interface{}{}
-		for deviceID, deviceState := range deviceStates {
-			deviceState.state["online"] = deviceState.Online
-			deviceState.state["status"] = deviceState.Status
-			queryResp.Payload.Devices[deviceID] = deviceState.state
+		for id, state := range pQueryResp.States {
+			state.state["online"] = state.Online
+			state.state["status"] = state.Status
+			queryResp.Payload.Devices[id] = state.state
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -150,9 +150,85 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	case "action.devices.EXECUTE":
-		s.provider.Sync(r.Context())
+		pExecuteReq := &ExecuteRequest{}
+		for _, command := range fulfillmentReq.Inputs[0].Execute.Commands {
+			devices := []DeviceArg{}
+			for _, device := range command.Devices {
+				devices = append(devices, DeviceArg{
+					ID:         device.ID,
+					CustomData: device.CustomData,
+				})
+			}
+			executions := []Command{}
+			for _, execution := range command.Execution {
+				executions = append(executions, execution.Command)
+			}
+			pExecuteReq.Commands = append(pExecuteReq.Commands, CommandArg{
+				TargetDevices: devices,
+				Commands:      executions,
+			})
+		}
 
-		w.Write([]byte("{}"))
+		pExecuteResp, err := s.provider.Execute(r.Context(), pExecuteReq)
+		if err != nil {
+			s.logger.Info("execute error",
+				zap.Error(err),
+			)
+
+			// TODO: clean this up possibly using better error handling.
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("Fail to execute"))
+			return
+		}
+
+		executeResp := &executeResponse{
+			RequestID: fulfillmentReq.RequestID,
+		}
+
+		if len(pExecuteResp.UpdatedDevices) > 0 {
+			commandSuccessResp := executeRespPayload{
+				Status: "SUCCESS",
+				States: pExecuteResp.UpdatedState.state,
+			}
+			commandSuccessResp.States["online"] = true
+			for _, id := range pExecuteResp.UpdatedDevices {
+				commandSuccessResp.IDs = append(commandSuccessResp.IDs, id)
+			}
+
+			executeResp.Payload.Commands = append(executeResp.Payload.Commands, commandSuccessResp)
+		}
+
+		if len(pExecuteResp.OfflineDevices) > 0 {
+			commandOfflineResp := executeRespPayload{
+				Status: "OFFLINE",
+			}
+			for _, id := range pExecuteResp.OfflineDevices {
+				commandOfflineResp.IDs = append(commandOfflineResp.IDs, id)
+			}
+
+			executeResp.Payload.Commands = append(executeResp.Payload.Commands, commandOfflineResp)
+		}
+
+		for errCode, details := range pExecuteResp.FailedDevices {
+			commandFailResp := executeRespPayload{
+				Status:    "ERROR",
+				ErrorCode: errCode,
+			}
+			for _, id := range details.Devices {
+				commandFailResp.IDs = append(commandFailResp.IDs, id)
+			}
+
+			executeResp.Payload.Commands = append(executeResp.Payload.Commands, commandFailResp)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		err = json.NewEncoder(w).Encode(executeResp)
+		if err != nil {
+			s.logger.Info("error serializing after writing ok",
+				zap.Error(err),
+			)
+		}
 		return
 	case "action.devices.DISCONNECT":
 		s.provider.Disconnect(r.Context())
@@ -218,23 +294,90 @@ func (i *fulfillmentInput) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (ep *executionPayload) UnmarshalJSON(data []byte) error {
+	var tmp struct {
+		Command string          `json:"command"`
+		Params  json.RawMessage `json:"params"`
+	}
+
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return err
+	}
+
+	ep.CommandName = tmp.Command
+	ep.Command = Command{
+		Name: tmp.Command,
+	}
+	var details interface{}
+	switch tmp.Command {
+	case "action.devices.commands.BrightnessAbsolute":
+		ep.Command.BrightnessAbsolute = &CommandBrightnessAbsolute{}
+		details = ep.Command.BrightnessAbsolute
+	case "action.devices.commands.BrightnessRelative":
+		ep.Command.BrightnessRelative = &CommandBrightnessRelative{}
+		details = ep.Command.BrightnessRelative
+	case "action.devices.commands.ColorAbsolute":
+		ep.Command.ColorAbsolute = &CommandColorAbsolute{}
+		details = ep.Command.ColorAbsolute
+	case "action.devices.commands.OnOff":
+		ep.Command.OnOff = &CommandOnOff{}
+		details = ep.Command.OnOff
+	case "action.devices.commands.mute":
+		ep.Command.Mute = &CommandMute{}
+		details = ep.Command.Mute
+	case "action.devices.commands.setVolume":
+		ep.Command.SetVolume = &CommandSetVolume{}
+		details = ep.Command.SetVolume
+	case "action.devices.commands.volumeRelative":
+		ep.Command.AdjustVolume = &CommandSetVolumeRelative{}
+		details = ep.Command.AdjustVolume
+	case "action.devices.commands.SetInput":
+		ep.Command.SetInput = &CommandSetInput{}
+		details = ep.Command.SetInput
+	case "action.devices.commands.NextInput":
+		ep.Command.NextInput = &CommandNextInput{}
+		details = ep.Command.NextInput
+	case "action.devices.commands.PreviousInput":
+		ep.Command.PreviousInput = &CommandPreviousInput{}
+		details = ep.Command.PreviousInput
+	default:
+		ep.Command.Generic = &CommandGeneric{}
+		details = ep.Command.Generic
+	}
+
+	err = json.Unmarshal(tmp.Params, details)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+type deviceHandle struct {
+	ID         string                 `json:"id"`
+	CustomData map[string]interface{} `json:"customData"`
+}
+
 type queryPayload struct {
-	Devices []struct {
-		ID         string                 `json:"id"`
-		CustomData map[string]interface{} `json:"customData"`
-	} `json:"devices"`
+	Devices []deviceHandle `json:"devices"`
+}
+type executionPayload struct {
+	CommandName string
+
+	Command Command
 }
 type executePayload struct {
 	Commands []struct {
-		Devices []struct {
-			ID         string                 `json:"id"`
-			CustomData map[string]interface{} `json:"customData"`
-		} `json:"devices"`
-		Execution []struct {
-			Command string          `json:"command"`
-			Params  json.RawMessage `json:"params"`
-		} `json:"execution"`
+		Devices   []deviceHandle     `json:"devices"`
+		Execution []executionPayload `json:"execution"`
 	} `json:"commands"`
+}
+type executeRespPayload struct {
+	IDs       []string               `json:"ids,omitempty"`
+	Status    string                 `json:"status,omitempty"`
+	ErrorCode string                 `json:"errorCode,omitempty"`
+	States    map[string]interface{} `json:"states,omitempty"`
 }
 
 type syncResponse struct {
@@ -246,11 +389,16 @@ type syncResponse struct {
 		Devices   []*Device `json:"devices,omitempty"`
 	} `json:"payload"`
 }
-
 type queryResponse struct {
 	RequestID string `json:"requestId,omitempty"`
 	Payload   struct {
 		Devices map[string]map[string]interface{} `json:"devices"`
+	} `json:"payload"`
+}
+type executeResponse struct {
+	RequestID string `json:"requestId,omitempty"`
+	Payload   struct {
+		Commands []executeRespPayload `json:"commands"`
 	} `json:"payload"`
 }
 
@@ -289,40 +437,21 @@ type otherDeviceIDraw struct {
 	DeviceID string `json:"deviceId,omitempty"`
 }
 
-// Device represents a single provider-supplied device profile.
 type deviceRaw struct {
-	// ID of the device
-	ID string `json:"id,omitempty"`
-
-	// Type of the device.
-	// See https://developers.google.com/assistant/smarthome/guides is a list of possible types
-	Type string `json:"type,omitempty"`
-
-	// Traits of the device.
-	// See https://developers.google.com/assistant/smarthome/traits for a list of possible traits
-	// The set of assigned traits will dictate which actions can be performed on the device
+	ID     string   `json:"id,omitempty"`
+	Type   string   `json:"type,omitempty"`
 	Traits []string `json:"traits,omitempty"`
 
-	// Name of the device.
 	Name struct {
-		// DefaultNames (not user settable)
 		DefaultNames []string `json:"defaultNames,omitempty"`
-		// Name supplied by the user for display purposes
-		Name string `json:"name,omitempty"`
-		// Nicknames given to this, should a user have multiple ways to refer to the device
-		Nicknames []string `json:"nicknames,omitempty"`
+		Name         string   `json:"name,omitempty"`
+		Nicknames    []string `json:"nicknames,omitempty"`
 	} `json:"name,omitempty"`
 
-	// WillReportState using the ReportState API (should be true)
-	WillReportState bool `json:"willReportState"`
+	WillReportState bool                   `json:"willReportState"`
+	RoomHint        string                 `json:"roomHint,omitempty"`
+	Attributes      map[string]interface{} `json:"attributes,omitempty"`
 
-	// RoomHint guides Google as to which room this device is in
-	RoomHint string `json:"roomHint,omitempty"`
-
-	// Attributes linked to the defined traits
-	Attributes map[string]interface{} `json:"attributes,omitempty"`
-
-	// DeviceInfo that is physically defined
 	DeviceInfo struct {
 		Manufacturer string `json:"manufacturer,omitempty"`
 		Model        string `json:"model,omitempty"`
@@ -330,8 +459,6 @@ type deviceRaw struct {
 		SwVersion    string `json:"swVersion,omitempty"`
 	} `json:"deviceInfo,omitempty"`
 
-	OtherDeviceIDs []otherDeviceIDraw `json:"otherDeviceIds,omitempty"`
-
-	// CustomData specified which will be included unmodified in subsequent requests.
-	CustomData map[string]interface{} `json:"customData,omitempty"`
+	OtherDeviceIDs []otherDeviceIDraw     `json:"otherDeviceIds,omitempty"`
+	CustomData     map[string]interface{} `json:"customData,omitempty"`
 }

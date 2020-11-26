@@ -1,13 +1,14 @@
 package action
 
-import "encoding/json"
-
 // Command defines which command, and what details, are being specified.
 // Only one of the contained fields will be set at any point in time.
 type Command struct {
+	Name    string
+	Generic *CommandGeneric
+
 	BrightnessAbsolute *CommandBrightnessAbsolute
 	BrightnessRelative *CommandBrightnessRelative
-	ColorSetting       *CommandColorSetting
+	ColorAbsolute      *CommandColorAbsolute
 	OnOff              *CommandOnOff
 	Mute               *CommandMute
 	SetVolume          *CommandSetVolume
@@ -15,15 +16,13 @@ type Command struct {
 	SetInput           *CommandSetInput
 	NextInput          *CommandNextInput
 	PreviousInput      *CommandPreviousInput
-
-	Unparsed *CommandUnparsed
 }
 
-// CommandUnparsed contains a command definition which hasn't been parsed into a specific command above.
+// CommandGeneric contains a command definition which hasn't been parsed into a specific command structure.
 // This is intended to support newly defined commands which callers of this SDK may handle but this does not yet support.
-type CommandUnparsed struct {
-	Command string          `json:"command"`
-	Params  json.RawMessage `json:"params"`
+type CommandGeneric struct {
+	Command string                 `json:"command"`
+	Params  map[string]interface{} `json:"params"`
 }
 
 // CommandBrightnessAbsolute requests to set the brightness to an absolute value
@@ -40,10 +39,10 @@ type CommandBrightnessRelative struct {
 	RelativeWeight  int `json:"brightnessRelativeWeight"`
 }
 
-// CommandColorSetting requests to set the colour of a light to a particular value.
+// CommandColorAbsolute requests to set the colour of a light to a particular value.
 // Only one of temperature, RGB and HSV will be set.
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
-type CommandColorSetting struct {
+type CommandColorAbsolute struct {
 	Name        string `json:"name"`
 	Temperature int    `json:"temperature"`
 	RGB         int    `json:"spectrumRGB"`
