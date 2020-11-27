@@ -73,7 +73,7 @@ func (a *auth0Authenticator) Validate(ctx context.Context, token string) (string
 	return respPayload.Sub, nil
 }
 
-type device struct {
+type lightbulb struct {
 	id         string
 	name       string
 	isOn       bool
@@ -86,23 +86,32 @@ type device struct {
 	}
 }
 
+type receiver struct {
+	id        string
+	name      string
+	isOn      bool
+	volume    int
+	currInput string
+}
+
 type echoService struct {
 	logger *zap.Logger
 
-	devices map[string]device
+	lights   map[string]lightbulb
+	receiver receiver
 }
 
 func (es *echoService) Sync(context.Context) (*action.SyncResponse, error) {
 	es.logger.Debug("sync")
 
 	resp := &action.SyncResponse{}
-	for _, d := range es.devices {
-		ad := action.NewLight(d.id)
+	for _, lb := range es.lights {
+		ad := action.NewLight(lb.id)
 		ad.Name = action.DeviceName{
 			DefaultNames: []string{
 				"Test lamp",
 			},
-			Name: d.name,
+			Name: lb.name,
 		}
 		ad.WillReportState = false
 		ad.RoomHint = "test room"
@@ -118,6 +127,50 @@ func (es *echoService) Sync(context.Context) (*action.SyncResponse, error) {
 		resp.Devices = append(resp.Devices, ad)
 	}
 
+	inputs := []action.DeviceInput{
+		{
+			Key: "input_1",
+			Names: []action.DeviceInputName{
+				{
+					Synonyms: []string{
+						"Input 1",
+						"Google Chromecast Audio",
+					},
+					LanguageCode: "en",
+				},
+			},
+		},
+		{
+			Key: "input_2",
+			Names: []action.DeviceInputName{
+				{
+					Synonyms: []string{
+						"Input 2",
+						"Raspberry Pi",
+					},
+					LanguageCode: "en",
+				},
+			},
+		},
+	}
+	ar := action.NewSimpleAVReceiver(es.receiver.id, inputs, 100, true, false)
+	ar.Name = action.DeviceName{
+		DefaultNames: []string{
+			"Test receiver",
+		},
+		Name: es.receiver.name,
+	}
+	ar.WillReportState = true
+	ar.RoomHint = "test room"
+	ar.DeviceInfo = action.DeviceInfo{
+		Manufacturer: "faltung systems",
+		Model:        "tavr001",
+		HwVersion:    "0.2",
+		SwVersion:    "0.3",
+	}
+
+	resp.Devices = append(resp.Devices, ar)
+
 	return resp, nil
 }
 func (es *echoService) Disconnect(context.Context) error {
@@ -132,7 +185,7 @@ func (es *echoService) Query(_ context.Context, req *action.QueryRequest) (*acti
 	}
 
 	for _, deviceArg := range req.Devices {
-		if device, found := es.devices[deviceArg.ID]; found {
+		if device, found := es.lights[deviceArg.ID]; found {
 			resp.States[deviceArg.ID] = action.NewDeviceState(true, "SUCCESS").RecordOnOff(device.isOn).RecordBrightness(device.brightness).RecordColorHSV(device.color.hue, device.color.saturation, device.color.value)
 		}
 	}
@@ -153,25 +206,47 @@ func (es *echoService) Execute(_ context.Context, req *action.ExecuteRequest) (*
 			)
 
 			for _, deviceArg := range commandArg.TargetDevices {
-				if device, found := es.devices[deviceArg.ID]; found {
+				if es.receiver.id == deviceArg.ID {
+					if command.OnOff != nil {
+						es.receiver.isOn = command.OnOff.On
+						resp.UpdatedState.RecordOnOff(es.receiver.isOn)
+					} else if command.SetVolume != nil {
+						es.receiver.volume = command.SetVolume.Level
+						resp.UpdatedState.RecordVolume(es.receiver.volume, false)
+					} else if command.AdjustVolume != nil {
+						es.receiver.volume += command.AdjustVolume.Amount
+						resp.UpdatedState.RecordVolume(es.receiver.volume, false)
+					} else if command.SetInput != nil {
+						es.receiver.currInput = command.SetInput.NewInput
+						resp.UpdatedState.RecordInput(es.receiver.currInput)
+					} else {
+						es.logger.Info("unsupported command",
+							zap.String("command", command.Name),
+						)
+						continue
+					}
+
+					resp.UpdatedDevices = append(resp.UpdatedDevices, deviceArg.ID)
+					continue
+				} else if device, found := es.lights[deviceArg.ID]; found {
 					if command.OnOff != nil {
 						device.isOn = command.OnOff.On
 						resp.UpdatedState.RecordOnOff(device.isOn)
-						es.devices[deviceArg.ID] = device
+						es.lights[deviceArg.ID] = device
 					} else if command.BrightnessAbsolute != nil {
 						device.brightness = command.BrightnessAbsolute.Brightness
 						resp.UpdatedState.RecordBrightness(device.brightness)
-						es.devices[deviceArg.ID] = device
+						es.lights[deviceArg.ID] = device
 					} else if command.BrightnessRelative != nil {
 						device.brightness += command.BrightnessRelative.RelativeWeight
 						resp.UpdatedState.RecordBrightness(device.brightness)
-						es.devices[deviceArg.ID] = device
+						es.lights[deviceArg.ID] = device
 					} else if command.ColorAbsolute != nil {
 						device.color.hue = command.ColorAbsolute.HSV.Hue
 						device.color.saturation = command.ColorAbsolute.HSV.Saturation
 						device.color.value = command.ColorAbsolute.HSV.Value
 						resp.UpdatedState.RecordColorHSV(device.color.hue, device.color.saturation, device.color.value)
-						es.devices[deviceArg.ID] = device
+						es.lights[deviceArg.ID] = device
 					} else {
 						es.logger.Info("unsupported command",
 							zap.String("command", command.Name))
@@ -207,10 +282,10 @@ func main() {
 
 	es := &echoService{
 		logger: logger,
-		devices: map[string]device{
+		lights: map[string]lightbulb{
 			"123": {
 				"123",
-				"test device 1",
+				"test light 1",
 				false,
 				40,
 				struct {
@@ -225,7 +300,7 @@ func main() {
 			},
 			"456": {
 				"456",
-				"test device 2",
+				"test light 2",
 				false,
 				40,
 				struct {
@@ -238,6 +313,13 @@ func main() {
 					10,
 				},
 			},
+		},
+		receiver: receiver{
+			"789",
+			"test receiver",
+			false,
+			20,
+			"input_1",
 		},
 	}
 

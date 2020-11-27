@@ -75,13 +75,16 @@ func NewDevice(id string, typ string) *Device {
 	}
 }
 
+// DeviceInputName represents the human-readable name shown for an input
+type DeviceInputName struct {
+	LanguageCode string   `json:"lang"`
+	Synonyms     []string `json:"name_synonym"`
+}
+
 // DeviceInput represents a single input of a device
 type DeviceInput struct {
-	Key   string `json:"key"`
-	Names []struct {
-		LanguageCode string   `json:"lang"`
-		Synonyms     []string `json:"name_synonym"`
-	} `json:"names"`
+	Key   string            `json:"key"`
+	Names []DeviceInputName `json:"names"`
 }
 
 // NewSimpleAVReceiver creates a new device with the attributes for a simple AV receiver setup.
