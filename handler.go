@@ -133,11 +133,10 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		queryResp := &queryResponse{
 			RequestID: fulfillmentReq.RequestID,
 		}
-		queryResp.Payload.Devices = map[string]map[string]interface{}{}
-		for id, state := range pQueryResp.States {
-			state.state["online"] = state.Online
-			state.state["status"] = state.Status
-			queryResp.Payload.Devices[id] = state.state
+		queryResp.Payload.Devices = map[string]DeviceState{}
+		for deviceID, state := range pQueryResp.States {
+			state.Status = "SUCCESS"
+			queryResp.Payload.Devices[deviceID] = state
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -392,7 +391,7 @@ type syncResponse struct {
 type queryResponse struct {
 	RequestID string `json:"requestId,omitempty"`
 	Payload   struct {
-		Devices map[string]map[string]interface{} `json:"devices"`
+		Devices map[string]DeviceState `json:"devices"`
 	} `json:"payload"`
 }
 type executeResponse struct {
@@ -400,65 +399,4 @@ type executeResponse struct {
 	Payload   struct {
 		Commands []executeRespPayload `json:"commands"`
 	} `json:"payload"`
-}
-
-// MarshalJSON is a custom JSON serializer for our Device
-func (d Device) MarshalJSON() ([]byte, error) {
-	dr := deviceRaw{}
-
-	dr.ID = d.ID
-	dr.Type = d.Type
-	for trait := range d.Traits {
-		dr.Traits = append(dr.Traits, trait)
-	}
-	dr.Name.DefaultNames = d.Name.DefaultNames
-	dr.Name.Name = d.Name.Name
-	dr.Name.Nicknames = d.Name.Nicknames
-	dr.WillReportState = d.WillReportState
-	dr.RoomHint = d.RoomHint
-	dr.Attributes = d.attributes
-	dr.DeviceInfo.Manufacturer = d.DeviceInfo.Manufacturer
-	dr.DeviceInfo.Model = d.DeviceInfo.Model
-	dr.DeviceInfo.HwVersion = d.DeviceInfo.HwVersion
-	dr.DeviceInfo.SwVersion = d.DeviceInfo.SwVersion
-	for _, otherDeviceID := range d.OtherDeviceIDs {
-		dr.OtherDeviceIDs = append(dr.OtherDeviceIDs, otherDeviceIDraw{
-			AgentID:  otherDeviceID.AgentID,
-			DeviceID: otherDeviceID.DeviceID,
-		})
-	}
-	dr.CustomData = d.CustomData
-
-	return json.Marshal(dr)
-}
-
-type otherDeviceIDraw struct {
-	AgentID  string `json:"agentId,omitempty"`
-	DeviceID string `json:"deviceId,omitempty"`
-}
-
-type deviceRaw struct {
-	ID     string   `json:"id,omitempty"`
-	Type   string   `json:"type,omitempty"`
-	Traits []string `json:"traits,omitempty"`
-
-	Name struct {
-		DefaultNames []string `json:"defaultNames,omitempty"`
-		Name         string   `json:"name,omitempty"`
-		Nicknames    []string `json:"nicknames,omitempty"`
-	} `json:"name,omitempty"`
-
-	WillReportState bool                   `json:"willReportState"`
-	RoomHint        string                 `json:"roomHint,omitempty"`
-	Attributes      map[string]interface{} `json:"attributes,omitempty"`
-
-	DeviceInfo struct {
-		Manufacturer string `json:"manufacturer,omitempty"`
-		Model        string `json:"model,omitempty"`
-		HwVersion    string `json:"hwVersion,omitempty"`
-		SwVersion    string `json:"swVersion,omitempty"`
-	} `json:"deviceInfo,omitempty"`
-
-	OtherDeviceIDs []otherDeviceIDraw     `json:"otherDeviceIds,omitempty"`
-	CustomData     map[string]interface{} `json:"customData,omitempty"`
 }

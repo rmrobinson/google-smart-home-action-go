@@ -140,7 +140,7 @@ func TestGoogleFulfillmentHandlerSync(t *testing.T) {
 
 	provider.syncResp = []*Device{d1, d2}
 
-	svc := NewService(logger, authenticator, provider)
+	svc := NewService(logger, authenticator, provider, nil)
 
 	req, err := http.NewRequest(http.MethodPost, GoogleFulfillmentPath, bytes.NewBuffer([]byte(`{
 		"requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
@@ -190,10 +190,10 @@ func TestGoogleFulfillmentHandlerQuery(t *testing.T) {
 	}
 	d2.AddBrightnessTrait(false).AddColourTrait(RGB, false).AddColourTemperatureTrait(2000, 9000, false)
 
-	d1State := NewDeviceState(true, "SUCCESS")
+	d1State := NewDeviceState(true)
 	d1State.RecordOnOff(true)
 
-	d2State := NewDeviceState(true, "SUCCESS")
+	d2State := NewDeviceState(true)
 	d2State.RecordOnOff(true).RecordBrightness(80).RecordColorRGB(31655)
 
 	provider.queryResp = map[string]DeviceState{
@@ -201,7 +201,7 @@ func TestGoogleFulfillmentHandlerQuery(t *testing.T) {
 		d2.ID: d2State,
 	}
 
-	svc := NewService(logger, authenticator, provider)
+	svc := NewService(logger, authenticator, provider, nil)
 
 	req, err := http.NewRequest(http.MethodPost, GoogleFulfillmentPath, bytes.NewBuffer([]byte(`{
 		"requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
@@ -271,13 +271,13 @@ func TestGoogleFulfillmentHandlerExecute(t *testing.T) {
 	}
 	d2.AddBrightnessTrait(false).AddColourTrait(RGB, false).AddColourTemperatureTrait(2000, 9000, false)
 
-	provider.executeRespDeviceState = NewDeviceState(true, "SUCCESS")
+	provider.executeRespDeviceState = NewDeviceState(true)
 	provider.executeRespDeviceState.RecordOnOff(true)
 	provider.executeRespUpdated = []string{"123"}
 	provider.executeRespFailed = []string{"456"}
 	provider.executeRespFailedReason = "deviceTurnedOff"
 
-	svc := NewService(logger, authenticator, provider)
+	svc := NewService(logger, authenticator, provider, nil)
 
 	req, err := http.NewRequest(http.MethodPost, GoogleFulfillmentPath, bytes.NewBuffer([]byte(`{
 		"requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
@@ -344,7 +344,7 @@ func TestGoogleFulfillmentHandlerDisconnect(t *testing.T) {
 	}
 	provider := &testProvider{}
 
-	svc := NewService(logger, authenticator, provider)
+	svc := NewService(logger, authenticator, provider, nil)
 
 	req, err := http.NewRequest(http.MethodPost, GoogleFulfillmentPath, bytes.NewBuffer([]byte(`{
 		"requestId": "ff36a3cc-ec34-11e6-b1a0-64510650abcf",
@@ -454,7 +454,7 @@ func TestGoogleFulfillmentHandlerBadInput(t *testing.T) {
 	}
 	provider := &testProvider{}
 
-	svc := NewService(logger, authenticator, provider)
+	svc := NewService(logger, authenticator, provider, nil)
 
 	for _, tt := range badInputTests {
 		t.Run(tt.name, func(t *testing.T) {
