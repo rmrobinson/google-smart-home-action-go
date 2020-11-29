@@ -82,7 +82,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 
 	switch fulfillmentReq.Inputs[0].Intent {
 	case "action.devices.SYNC":
-		pSyncResp, err := s.provider.Sync(r.Context())
+		pSyncResp, err := s.provider.Sync(r.Context(), userID)
 		if err != nil {
 			s.logger.Info("sync error",
 				zap.Error(err),
@@ -110,7 +110,9 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	case "action.devices.QUERY":
-		pQueryReq := &QueryRequest{}
+		pQueryReq := &QueryRequest{
+			AgentID: userID,
+		}
 		for _, device := range fulfillmentReq.Inputs[0].Query.Devices {
 			pQueryReq.Devices = append(pQueryReq.Devices, DeviceArg{
 				ID:         device.ID,
@@ -149,7 +151,9 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	case "action.devices.EXECUTE":
-		pExecuteReq := &ExecuteRequest{}
+		pExecuteReq := &ExecuteRequest{
+			AgentID: userID,
+		}
 		for _, command := range fulfillmentReq.Inputs[0].Execute.Commands {
 			devices := []DeviceArg{}
 			for _, device := range command.Devices {
@@ -230,7 +234,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 		return
 	case "action.devices.DISCONNECT":
-		s.provider.Disconnect(r.Context())
+		s.provider.Disconnect(r.Context(), userID)
 
 		w.Write([]byte("{}"))
 		return
