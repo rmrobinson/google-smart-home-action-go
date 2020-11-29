@@ -46,7 +46,7 @@ type echoService struct {
 	receiver receiver
 }
 
-func (es *echoService) Sync(context.Context) (*action.SyncResponse, error) {
+func (es *echoService) Sync(context.Context, string) (*action.SyncResponse, error) {
 	es.logger.Debug("sync")
 
 	resp := &action.SyncResponse{}
@@ -117,7 +117,7 @@ func (es *echoService) Sync(context.Context) (*action.SyncResponse, error) {
 
 	return resp, nil
 }
-func (es *echoService) Disconnect(context.Context) error {
+func (es *echoService) Disconnect(context.Context, string) error {
 	es.logger.Debug("disconnect")
 	return nil
 }

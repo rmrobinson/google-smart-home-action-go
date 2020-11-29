@@ -49,6 +49,7 @@ type SyncResponse struct {
 // QueryRequest includes what is being asked for by the Google Smart Home Action when querying.
 type QueryRequest struct {
 	Devices []DeviceArg
+	AgentID string
 }
 
 // QueryResponse includes what should be returned in response to the query to the Google Home Smart Action.
@@ -61,6 +62,7 @@ type QueryResponse struct {
 // The customData is a JSON object originally returned during the Sync operation.
 type ExecuteRequest struct {
 	Commands []CommandArg
+	AgentID  string
 }
 
 // ExecuteResponse includes the results of an Execute command to be sent back to the Google home graph after an execute.
@@ -83,8 +85,8 @@ type AccessTokenValidator interface {
 
 // Provider exposes methods that can be invoked by the Google Smart Home Action intents
 type Provider interface {
-	Sync(context.Context) (*SyncResponse, error)
-	Disconnect(context.Context) error
+	Sync(context.Context, string) (*SyncResponse, error)
+	Disconnect(context.Context, string) error
 	Query(context.Context, *QueryRequest) (*QueryResponse, error)
 	Execute(context.Context, *ExecuteRequest) (*ExecuteResponse, error)
 }

@@ -40,13 +40,13 @@ type testProvider struct {
 	executeErr              error
 }
 
-func (tp *testProvider) Sync(context.Context) (*SyncResponse, error) {
+func (tp *testProvider) Sync(context.Context, string) (*SyncResponse, error) {
 	return &SyncResponse{
 		Devices: tp.syncResp,
 	}, tp.syncErr
 }
 
-func (tp *testProvider) Disconnect(context.Context) error {
+func (tp *testProvider) Disconnect(context.Context, string) error {
 	return nil
 }
 
