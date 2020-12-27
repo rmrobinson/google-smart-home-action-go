@@ -243,6 +243,47 @@ func (d Device) MarshalJSON() ([]byte, error) {
 	return json.Marshal(dr)
 }
 
+// UnmarshalJSON is a custom JSON deserializer for our Device
+func (d *Device) UnmarshalJSON(data []byte) error {
+	dr := deviceRaw{}
+	if err := json.Unmarshal(data, &dr); err != nil {
+		return err
+	}
+
+	if d.Traits == nil {
+		d.Traits = map[string]bool{}
+	}
+
+	d.ID = dr.ID
+	d.Type = dr.Type
+	for _, trait := range dr.Traits {
+		d.Traits[trait] = true
+	}
+	d.Name.DefaultNames = dr.Name.DefaultNames
+	d.Name.Name = dr.Name.Name
+	d.Name.Nicknames = dr.Name.Nicknames
+	d.WillReportState = dr.WillReportState
+	d.RoomHint = dr.RoomHint
+	d.attributes = dr.Attributes
+	d.DeviceInfo.Manufacturer = dr.DeviceInfo.Manufacturer
+	d.DeviceInfo.Model = dr.DeviceInfo.Model
+	d.DeviceInfo.HwVersion = dr.DeviceInfo.HwVersion
+	d.DeviceInfo.SwVersion = dr.DeviceInfo.SwVersion
+	for _, otherDeviceID := range dr.OtherDeviceIDs {
+		d.OtherDeviceIDs = append(d.OtherDeviceIDs, OtherDeviceID{
+			AgentID:  otherDeviceID.AgentID,
+			DeviceID: otherDeviceID.DeviceID,
+		})
+	}
+
+	d.CustomData = dr.CustomData
+	if d.CustomData == nil {
+		d.CustomData = map[string]interface{}{}
+	}
+
+	return nil
+}
+
 type otherDeviceIDraw struct {
 	AgentID  string `json:"agentId,omitempty"`
 	DeviceID string `json:"deviceId,omitempty"`

@@ -99,3 +99,24 @@ func (ds DeviceState) MarshalJSON() ([]byte, error) {
 
 	return json.Marshal(payload)
 }
+
+// UnmarshalJSON is a custom JSON deserializer for our DeviceState
+func (ds *DeviceState) UnmarshalJSON(data []byte) error {
+	payload := map[string]interface{}{}
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	if online, ok := payload["online"]; ok {
+		ds.Online = online.(bool)
+		delete(payload, "online")
+	}
+	if status, ok := payload["status"]; ok {
+		ds.Status = status.(string)
+		delete(payload, "status")
+	}
+
+	ds.state = payload
+
+	return nil
+}
