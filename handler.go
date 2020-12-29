@@ -162,13 +162,9 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 					CustomData: device.CustomData,
 				})
 			}
-			executions := []Command{}
-			for _, execution := range command.Execution {
-				executions = append(executions, execution.Command)
-			}
 			pExecuteReq.Commands = append(pExecuteReq.Commands, CommandArg{
 				TargetDevices: devices,
-				Commands:      executions,
+				Commands:      command.Execution,
 			})
 		}
 
@@ -297,66 +293,6 @@ func (i *fulfillmentInput) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (ep *executionPayload) UnmarshalJSON(data []byte) error {
-	var tmp struct {
-		Command string          `json:"command"`
-		Params  json.RawMessage `json:"params"`
-	}
-
-	err := json.Unmarshal(data, &tmp)
-	if err != nil {
-		return err
-	}
-
-	ep.CommandName = tmp.Command
-	ep.Command = Command{
-		Name: tmp.Command,
-	}
-	var details interface{}
-	switch tmp.Command {
-	case "action.devices.commands.BrightnessAbsolute":
-		ep.Command.BrightnessAbsolute = &CommandBrightnessAbsolute{}
-		details = ep.Command.BrightnessAbsolute
-	case "action.devices.commands.BrightnessRelative":
-		ep.Command.BrightnessRelative = &CommandBrightnessRelative{}
-		details = ep.Command.BrightnessRelative
-	case "action.devices.commands.ColorAbsolute":
-		ep.Command.ColorAbsolute = &CommandColorAbsolute{}
-		details = ep.Command.ColorAbsolute
-	case "action.devices.commands.OnOff":
-		ep.Command.OnOff = &CommandOnOff{}
-		details = ep.Command.OnOff
-	case "action.devices.commands.mute":
-		ep.Command.Mute = &CommandMute{}
-		details = ep.Command.Mute
-	case "action.devices.commands.setVolume":
-		ep.Command.SetVolume = &CommandSetVolume{}
-		details = ep.Command.SetVolume
-	case "action.devices.commands.volumeRelative":
-		ep.Command.AdjustVolume = &CommandSetVolumeRelative{}
-		details = ep.Command.AdjustVolume
-	case "action.devices.commands.SetInput":
-		ep.Command.SetInput = &CommandSetInput{}
-		details = ep.Command.SetInput
-	case "action.devices.commands.NextInput":
-		ep.Command.NextInput = &CommandNextInput{}
-		details = ep.Command.NextInput
-	case "action.devices.commands.PreviousInput":
-		ep.Command.PreviousInput = &CommandPreviousInput{}
-		details = ep.Command.PreviousInput
-	default:
-		ep.Command.Generic = &CommandGeneric{}
-		details = ep.Command.Generic
-	}
-
-	err = json.Unmarshal(tmp.Params, details)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 type deviceHandle struct {
 	ID         string                 `json:"id"`
 	CustomData map[string]interface{} `json:"customData"`
@@ -365,15 +301,10 @@ type deviceHandle struct {
 type queryPayload struct {
 	Devices []deviceHandle `json:"devices"`
 }
-type executionPayload struct {
-	CommandName string
-
-	Command Command
-}
 type executePayload struct {
 	Commands []struct {
-		Devices   []deviceHandle     `json:"devices"`
-		Execution []executionPayload `json:"execution"`
+		Devices   []deviceHandle `json:"devices"`
+		Execution []Command      `json:"execution"`
 	} `json:"commands"`
 }
 type executeRespPayload struct {
