@@ -179,7 +179,7 @@ func (s *Service) ReportState(ctx context.Context, agentUserID string, deviceSta
 	call.Context(ctx)
 	resp, err := call.Do()
 	if err != nil {
-		s.logger.Info("error requesting sync",
+		s.logger.Info("error reporting state",
 			zap.String("agent_user_id", agentUserID),
 			zap.Error(err),
 		)

@@ -188,9 +188,9 @@ func (es *echoService) Execute(_ context.Context, req *action.ExecuteRequest) (*
 						resp.UpdatedState.RecordBrightness(device.brightness)
 						es.lights[deviceArg.ID] = device
 					} else if command.ColorAbsolute != nil {
-						device.color.hue = command.ColorAbsolute.HSV.Hue
-						device.color.saturation = command.ColorAbsolute.HSV.Saturation
-						device.color.value = command.ColorAbsolute.HSV.Value
+						device.color.hue = command.ColorAbsolute.Color.HSV.Hue
+						device.color.saturation = command.ColorAbsolute.Color.HSV.Saturation
+						device.color.value = command.ColorAbsolute.Color.HSV.Value
 						resp.UpdatedState.RecordColorHSV(device.color.hue, device.color.saturation, device.color.value)
 						es.lights[deviceArg.ID] = device
 					} else {

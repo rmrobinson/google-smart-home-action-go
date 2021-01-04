@@ -143,14 +143,16 @@ type CommandBrightnessRelative struct {
 // Only one of temperature, RGB and HSV will be set.
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
 type CommandColorAbsolute struct {
-	Name        string `json:"name"`
-	Temperature int    `json:"temperature"`
-	RGB         int    `json:"spectrumRGB"`
-	HSV         struct {
-		Hue        float64 `json:"hue"`
-		Saturation float64 `json:"saturation"`
-		Value      float64 `json:"value"`
-	} `json:"spectrumHSV"`
+	Color struct {
+		Name        string `json:"name"`
+		Temperature int    `json:"temperature"`
+		RGB         int    `json:"spectrumRGB"`
+		HSV         struct {
+			Hue        float64 `json:"hue"`
+			Saturation float64 `json:"saturation"`
+			Value      float64 `json:"value"`
+		} `json:"spectrumHSV"`
+	} `json:"color"`
 }
 
 // CommandOnOff requests to turn the entity on or off.

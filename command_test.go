@@ -29,3 +29,27 @@ func TestCommandJSONSerializeDeserialize(t *testing.T) {
 	assert.Nil(t, reserializedErr)
 	assert.Equal(t, serializedBytes, reserializedBytes)
 }
+
+func TestCommandColorAbsoluteDeserializer(t *testing.T) {
+	msg := `{
+		"command": "action.devices.commands.ColorAbsolute",
+		"params": {
+		  "color": {
+			"name": "magenta",
+			"spectrumHSV": {
+			  "hue": 300,
+			  "saturation": 1,
+			  "value": 1
+			}
+		  }
+		}
+	  }`
+
+	cmd := Command{}
+	err := json.Unmarshal([]byte(msg), &cmd)
+	assert.Nil(t, err)
+	assert.NotNil(t, cmd.ColorAbsolute)
+	assert.Equal(t, 300.0, cmd.ColorAbsolute.Color.HSV.Hue)
+	assert.Equal(t, 1.0, cmd.ColorAbsolute.Color.HSV.Saturation)
+	assert.Equal(t, 1.0, cmd.ColorAbsolute.Color.HSV.Value)
+}
