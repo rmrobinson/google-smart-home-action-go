@@ -187,7 +187,7 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		if len(pExecuteResp.UpdatedDevices) > 0 {
 			commandSuccessResp := executeRespPayload{
 				Status: "SUCCESS",
-				States: pExecuteResp.UpdatedState.state,
+				States: pExecuteResp.UpdatedState.State,
 			}
 			commandSuccessResp.States["online"] = true
 			for _, id := range pExecuteResp.UpdatedDevices {
