@@ -1,6 +1,9 @@
 package action
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // Command defines which command, and what details, are being specified.
 // Only one of the contained fields will be set at any point in time.
@@ -46,8 +49,9 @@ func (c Command) MarshalJSON() ([]byte, error) {
 	case "action.devices.commands.PreviousInput":
 		details = c.PreviousInput
 	default:
-		c.Generic = &CommandGeneric{}
-		details = c.Generic
+		if c.Generic != nil {
+			details = c.Generic.Params
+		}
 	}
 
 	var tmp struct {
@@ -106,13 +110,16 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 		c.PreviousInput = &CommandPreviousInput{}
 		details = c.PreviousInput
 	default:
-		c.Generic = &CommandGeneric{}
-		details = c.Generic
+		c.Generic = &CommandGeneric{
+			Command: tmp.Command,
+			Params:  map[string]interface{}{},
+		}
+		details = &c.Generic.Params
 	}
 
 	err = json.Unmarshal(tmp.Params, details)
 	if err != nil {
-		return err
+		return fmt.Errorf("error unmarshaling command Params into details: %w", err)
 	}
 
 	return nil
