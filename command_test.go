@@ -59,6 +59,19 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "onoff command",
+			input: `{
+				"command": "action.devices.commands.OnOff",
+				"params": {"on": true}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OnOff",
+				OnOff: &CommandOnOff{
+					On: true,
+				},
+			},
+		},
 	} {
 		t.Run(example.name, func(t *testing.T) {
 			got := &Command{}
