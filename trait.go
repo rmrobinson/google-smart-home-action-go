@@ -7,14 +7,14 @@ type DeviceState struct {
 	Online bool
 	Status string
 
-	state map[string]interface{}
+	State map[string]interface{}
 }
 
 // NewDeviceState creates a new device state to be added to as defined by the relevant traits on a device.
 func NewDeviceState(online bool) DeviceState {
 	return DeviceState{
 		Online: online,
-		state:  map[string]interface{}{},
+		State:  map[string]interface{}{},
 	}
 }
 
@@ -22,7 +22,7 @@ func NewDeviceState(online bool) DeviceState {
 // Should only be applied to devices with the Brightness trait
 // See https://developers.google.com/assistant/smarthome/traits/brightness
 func (ds DeviceState) RecordBrightness(brightness int) DeviceState {
-	ds.state["brightness"] = brightness
+	ds.State["brightness"] = brightness
 	return ds
 }
 
@@ -30,7 +30,7 @@ func (ds DeviceState) RecordBrightness(brightness int) DeviceState {
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
 func (ds DeviceState) RecordColorTemperature(temperatureK int) DeviceState {
-	ds.state["color"] = map[string]interface{}{
+	ds.State["color"] = map[string]interface{}{
 		"temperatureK": temperatureK,
 	}
 	return ds
@@ -40,7 +40,7 @@ func (ds DeviceState) RecordColorTemperature(temperatureK int) DeviceState {
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
 func (ds DeviceState) RecordColorRGB(spectrumRgb int) DeviceState {
-	ds.state["color"] = map[string]interface{}{
+	ds.State["color"] = map[string]interface{}{
 		"spectrumRgb": spectrumRgb,
 	}
 	return ds
@@ -50,7 +50,7 @@ func (ds DeviceState) RecordColorRGB(spectrumRgb int) DeviceState {
 // Should only be applied to devices with the ColorSetting trait
 // See https://developers.google.com/assistant/smarthome/traits/colorsetting
 func (ds DeviceState) RecordColorHSV(hue float64, saturation float64, value float64) DeviceState {
-	ds.state["color"] = map[string]interface{}{
+	ds.State["color"] = map[string]interface{}{
 		"spectrumHsv": map[string]interface{}{
 			"hue":        hue,
 			"saturation": saturation,
@@ -64,7 +64,7 @@ func (ds DeviceState) RecordColorHSV(hue float64, saturation float64, value floa
 // Should only be applied to devices with the InputSelector trait
 // See https://developers.google.com/assistant/smarthome/traits/inputselector
 func (ds DeviceState) RecordInput(input string) DeviceState {
-	ds.state["input"] = input
+	ds.State["input"] = input
 	return ds
 }
 
@@ -72,7 +72,7 @@ func (ds DeviceState) RecordInput(input string) DeviceState {
 // Should only be applied to devices with the OnOff trait
 // See https://developers.google.com/assistant/smarthome/traits/onoff
 func (ds DeviceState) RecordOnOff(on bool) DeviceState {
-	ds.state["on"] = on
+	ds.State["on"] = on
 	return ds
 }
 
@@ -80,8 +80,8 @@ func (ds DeviceState) RecordOnOff(on bool) DeviceState {
 // Should only be applied to devices with the Volume trait
 // See https://developers.google.com/assistant/smarthome/traits/volume
 func (ds DeviceState) RecordVolume(volume int, isMuted bool) DeviceState {
-	ds.state["currentVolume"] = volume
-	ds.state["isMuted"] = isMuted
+	ds.State["currentVolume"] = volume
+	ds.State["isMuted"] = isMuted
 	return ds
 }
 
@@ -93,7 +93,7 @@ func (ds DeviceState) MarshalJSON() ([]byte, error) {
 		payload["status"] = ds.Status
 	}
 
-	for k, v := range ds.state {
+	for k, v := range ds.State {
 		payload[k] = v
 	}
 
@@ -116,7 +116,7 @@ func (ds *DeviceState) UnmarshalJSON(data []byte) error {
 		delete(payload, "status")
 	}
 
-	ds.state = payload
+	ds.State = payload
 
 	return nil
 }
