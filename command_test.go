@@ -17,7 +17,7 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "thermostat command",
+			name: "thermostat command - typical",
 			input: `{
 				"command":"action.devices.commands.ThermostatTemperatureSetpoint",
 				"params":{
@@ -31,6 +31,31 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 					Params: map[string]interface{}{
 						"thermostatTemperatureSetpoint": 42.42,
 					},
+				},
+			},
+		},
+		{
+			name: "thermostat command - empty params object",
+			input: `{
+				"command":"action.devices.commands.ThermostatTemperatureSetpoint",
+				"params":{}
+			 }`,
+			want: &Command{
+				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
+				Generic: &CommandGeneric{
+					Command: "action.devices.commands.ThermostatTemperatureSetpoint",
+					Params:  map[string]interface{}{},
+				},
+			},
+		},
+		{
+			name:  "thermostat command - missing params object",
+			input: `{"command":"action.devices.commands.ThermostatTemperatureSetpoint"}`,
+			want: &Command{
+				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
+				Generic: &CommandGeneric{
+					Command: "action.devices.commands.ThermostatTemperatureSetpoint",
+					Params:  nil,
 				},
 			},
 		},

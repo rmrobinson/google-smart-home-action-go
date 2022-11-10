@@ -49,9 +49,7 @@ func (c Command) MarshalJSON() ([]byte, error) {
 	case "action.devices.commands.PreviousInput":
 		details = c.PreviousInput
 	default:
-		if c.Generic != nil {
-			details = c.Generic.Params
-		}
+		return json.Marshal(c.Generic)
 	}
 
 	var tmp struct {
@@ -110,11 +108,12 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 		c.PreviousInput = &CommandPreviousInput{}
 		details = c.PreviousInput
 	default:
-		c.Generic = &CommandGeneric{
-			Command: tmp.Command,
-			Params:  map[string]interface{}{},
+		c.Generic = &CommandGeneric{}
+		err := json.Unmarshal(data, c.Generic)
+		if err != nil {
+			return err
 		}
-		details = &c.Generic.Params
+		return nil
 	}
 
 	err = json.Unmarshal(tmp.Params, details)
