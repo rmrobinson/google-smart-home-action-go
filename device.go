@@ -1,6 +1,9 @@
 package action
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"sort"
+)
 
 // DeviceName contains different ways of identifying the device
 type DeviceName struct {
@@ -222,6 +225,7 @@ func (d Device) MarshalJSON() ([]byte, error) {
 	for trait := range d.Traits {
 		dr.Traits = append(dr.Traits, trait)
 	}
+	sort.Strings(dr.Traits)
 	dr.Name.DefaultNames = d.Name.DefaultNames
 	dr.Name.Name = d.Name.Name
 	dr.Name.Nicknames = d.Name.Nicknames
