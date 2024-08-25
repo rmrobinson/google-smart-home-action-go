@@ -26,11 +26,8 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 			 }`,
 			want: &Command{
 				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
-				Generic: &CommandGeneric{
-					Command: "action.devices.commands.ThermostatTemperatureSetpoint",
-					Params: map[string]interface{}{
-						"thermostatTemperatureSetpoint": 42.42,
-					},
+				ThermostatTemperatureSetpoint: &CommandThermostatTemperatureSetpoint{
+					ThermostatTemperatureSetpointCelcius: 42.42,
 				},
 			},
 		},
@@ -38,25 +35,19 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 			name: "thermostat command - empty params object",
 			input: `{
 				"command":"action.devices.commands.ThermostatTemperatureSetpoint",
-				"params":{}
+				"params":{
+				}
 			 }`,
 			want: &Command{
-				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
-				Generic: &CommandGeneric{
-					Command: "action.devices.commands.ThermostatTemperatureSetpoint",
-					Params:  map[string]interface{}{},
-				},
+				Name:                          "action.devices.commands.ThermostatTemperatureSetpoint",
+				ThermostatTemperatureSetpoint: &CommandThermostatTemperatureSetpoint{},
 			},
 		},
 		{
-			name:  "thermostat command - missing params object",
 			input: `{"command":"action.devices.commands.ThermostatTemperatureSetpoint"}`,
 			want: &Command{
-				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
-				Generic: &CommandGeneric{
-					Command: "action.devices.commands.ThermostatTemperatureSetpoint",
-					Params:  nil,
-				},
+				Name:                          "action.devices.commands.ThermostatTemperatureSetpoint",
+				ThermostatTemperatureSetpoint: &CommandThermostatTemperatureSetpoint{},
 			},
 		},
 		{
@@ -69,6 +60,36 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 				Name: "action.devices.commands.OnOff",
 				OnOff: &CommandOnOff{
 					On: true,
+				},
+			},
+		},
+		{
+			name: "set fan speed command",
+			input: `{
+				"command": "action.devices.commands.SetFanSpeed",
+				"params": {
+					"fanSpeed": "low"
+				}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.SetFanSpeed",
+				SetFanSpeed: &CommandSetFanSpeed{
+					FanSpeed: ptrString("low"),
+				},
+			},
+		},
+		{
+			name: "set thermostat",
+			input: `{
+				"command": "action.devices.commands.ThermostatTemperatureSetpoint",
+				"params":{
+					"thermostatTemperatureSetpoint":21.5
+				}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.ThermostatTemperatureSetpoint",
+				ThermostatTemperatureSetpoint: &CommandThermostatTemperatureSetpoint{
+					ThermostatTemperatureSetpointCelcius: 21.5,
 				},
 			},
 		},
@@ -154,3 +175,5 @@ func roundtripJSON(in, out interface{}) error {
 	}
 	return nil
 }
+
+func ptrString(t string) *string { return &t }

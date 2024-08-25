@@ -11,16 +11,18 @@ type Command struct {
 	Name    string
 	Generic *CommandGeneric
 
-	BrightnessAbsolute *CommandBrightnessAbsolute
-	BrightnessRelative *CommandBrightnessRelative
-	ColorAbsolute      *CommandColorAbsolute
-	OnOff              *CommandOnOff
-	Mute               *CommandMute
-	SetVolume          *CommandSetVolume
-	AdjustVolume       *CommandSetVolumeRelative
-	SetInput           *CommandSetInput
-	NextInput          *CommandNextInput
-	PreviousInput      *CommandPreviousInput
+	BrightnessAbsolute            *CommandBrightnessAbsolute
+	BrightnessRelative            *CommandBrightnessRelative
+	ColorAbsolute                 *CommandColorAbsolute
+	OnOff                         *CommandOnOff
+	Mute                          *CommandMute
+	SetVolume                     *CommandSetVolume
+	AdjustVolume                  *CommandSetVolumeRelative
+	SetInput                      *CommandSetInput
+	NextInput                     *CommandNextInput
+	PreviousInput                 *CommandPreviousInput
+	SetFanSpeed                   *CommandSetFanSpeed
+	ThermostatTemperatureSetpoint *CommandThermostatTemperatureSetpoint
 }
 
 // MarshalJSON is a custom JSON serializer for our Command
@@ -44,6 +46,10 @@ func (c Command) MarshalJSON() ([]byte, error) {
 		details = c.AdjustVolume
 	case "action.devices.commands.SetInput":
 		details = c.SetInput
+	case "action.devices.commands.SetFanSpeed":
+		details = c.SetFanSpeed
+	case "action.devices.commands.ThermostatTemperatureSetpoint":
+		details = c.ThermostatTemperatureSetpoint
 	case "action.devices.commands.NextInput":
 		details = c.NextInput
 	case "action.devices.commands.PreviousInput":
@@ -101,6 +107,12 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 	case "action.devices.commands.SetInput":
 		c.SetInput = &CommandSetInput{}
 		details = c.SetInput
+	case "action.devices.commands.SetFanSpeed":
+		c.SetFanSpeed = &CommandSetFanSpeed{}
+		details = c.SetFanSpeed
+	case "action.devices.commands.ThermostatTemperatureSetpoint":
+		c.ThermostatTemperatureSetpoint = &CommandThermostatTemperatureSetpoint{}
+		details = c.ThermostatTemperatureSetpoint
 	case "action.devices.commands.NextInput":
 		c.NextInput = &CommandNextInput{}
 		details = c.NextInput
@@ -115,10 +127,14 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 		}
 		return nil
 	}
+	paramsRawJson := tmp.Params
+	if len(paramsRawJson) == 0 {
+		paramsRawJson = []byte("null")
+	}
 
-	err = json.Unmarshal(tmp.Params, details)
+	err = json.Unmarshal(paramsRawJson, details)
 	if err != nil {
-		return fmt.Errorf("error unmarshaling command Params into details: %w", err)
+		return fmt.Errorf("error unmarshaling command JSON 'params' value, %s, into details: %w", string(paramsRawJson), err)
 	}
 
 	return nil
@@ -171,6 +187,28 @@ type CommandOnOff struct {
 // See https://developers.google.com/assistant/smarthome/traits/volume
 type CommandMute struct {
 	Mute bool `json:"mute"`
+}
+
+// CommandSetFanSpeed requests the device fan speed be set to the specified
+// value.
+//
+// See https://developers.google.com/assistant/smarthome/traits/fanspeed
+type CommandSetFanSpeed struct {
+	// The requested speed setting of the fan, which corresponds to one of the
+	// settings specified during the sync response.
+	FanSpeed *string `json:"fanSpeed,omitempty"`
+
+	// The requested speed setting percentage (0-100).
+	FanSpeedPercent *float32 `json:"fanSpeedPercent,omitempty"`
+}
+
+// CommandThermostatTemperatureSetpoint requests the target temperature be set
+// to a particular temperature.
+//
+// [ThermostatTemperatureSetpoint documentation by Google]: https://developers.home.google.com/cloud-to-cloud/traits/temperaturesetting#action.devices.commands.thermostattemperaturesetpoint
+type CommandThermostatTemperatureSetpoint struct {
+	// Target temperature setpoint. Supports up to one decimal place.
+	ThermostatTemperatureSetpointCelcius float32 `json:"thermostatTemperatureSetpoint"`
 }
 
 // CommandSetVolume requests the device volume be set to the specified value.

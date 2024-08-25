@@ -3,6 +3,8 @@ package action
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -473,4 +475,16 @@ func TestGoogleFulfillmentHandlerBadInput(t *testing.T) {
 			assert.Equal(t, tt.expectedStatusCode, rr.Code)
 		})
 	}
+}
+
+func formatJSON(s string) string {
+	var out interface{}
+	if err := json.Unmarshal([]byte(s), &out); err != nil {
+		panic(fmt.Errorf("%q is not valid JSON: %w", s, err))
+	}
+	formatted, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	return string(formatted)
 }
