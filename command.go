@@ -8,7 +8,9 @@ import (
 // Command defines which command, and what details, are being specified.
 // Only one of the contained fields will be set at any point in time.
 type Command struct {
-	Name    string
+	Name      string
+	Challenge map[string]interface{}
+
 	Generic *CommandGeneric
 
 	BrightnessAbsolute            *CommandBrightnessAbsolute
@@ -23,6 +25,8 @@ type Command struct {
 	PreviousInput                 *CommandPreviousInput
 	SetFanSpeed                   *CommandSetFanSpeed
 	ThermostatTemperatureSetpoint *CommandThermostatTemperatureSetpoint
+	OpenClose                     *CommandOpenClose
+	OpenCloseRelative             *CommandOpenCloseRelative
 }
 
 // MarshalJSON is a custom JSON serializer for our Command
@@ -54,24 +58,33 @@ func (c Command) MarshalJSON() ([]byte, error) {
 		details = c.NextInput
 	case "action.devices.commands.PreviousInput":
 		details = c.PreviousInput
+	case "action.devices.commands.OpenClose":
+		details = c.OpenClose
+	case "action.devices.commands.OpenCloseRelative":
+		details = c.OpenCloseRelative
 	default:
 		return json.Marshal(c.Generic)
 	}
 
 	var tmp struct {
-		Command string      `json:"command"`
-		Params  interface{} `json:"params"`
+		Command   string                 `json:"command"`
+		Params    interface{}            `json:"params"`
+		Challenge map[string]interface{} `json:"challenge,omitempty"`
 	}
 	tmp.Command = c.Name
 	tmp.Params = details
+	if c.Challenge != nil {
+		tmp.Challenge = c.Challenge
+	}
 	return json.Marshal(tmp)
 }
 
 // UnmarshalJSON is a custom JSON deserializer for our Command
 func (c *Command) UnmarshalJSON(data []byte) error {
 	var tmp struct {
-		Command string          `json:"command"`
-		Params  json.RawMessage `json:"params"`
+		Command   string                 `json:"command"`
+		Params    json.RawMessage        `json:"params"`
+		Challenge map[string]interface{} `json:"challenge,omitempty"`
 	}
 
 	err := json.Unmarshal(data, &tmp)
@@ -80,6 +93,9 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 	}
 
 	c.Name = tmp.Command
+	if tmp.Challenge != nil {
+		c.Challenge = tmp.Challenge
+	}
 
 	var details interface{}
 	switch tmp.Command {
@@ -119,6 +135,12 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 	case "action.devices.commands.PreviousInput":
 		c.PreviousInput = &CommandPreviousInput{}
 		details = c.PreviousInput
+	case "action.devices.commands.OpenClose":
+		c.OpenClose = &CommandOpenClose{}
+		details = c.OpenClose
+	case "action.devices.commands.OpenCloseRelative":
+		c.OpenCloseRelative = &CommandOpenCloseRelative{}
+		details = c.OpenCloseRelative
 	default:
 		c.Generic = &CommandGeneric{}
 		err := json.Unmarshal(data, c.Generic)
@@ -143,8 +165,9 @@ func (c *Command) UnmarshalJSON(data []byte) error {
 // CommandGeneric contains a command definition which hasn't been parsed into a specific command structure.
 // This is intended to support newly defined commands which callers of this SDK may handle but this does not yet support.
 type CommandGeneric struct {
-	Command string                 `json:"command"`
-	Params  map[string]interface{} `json:"params"`
+	Command   string                 `json:"command"`
+	Params    map[string]interface{} `json:"params"`
+	Challenge map[string]string      `json:"challenge,omitempty"`
 }
 
 // CommandBrightnessAbsolute requests to set the brightness to an absolute value
@@ -237,4 +260,19 @@ type CommandNextInput struct {
 // CommandPreviousInput requests the device input be changed to the previous logical one.
 // See https://developers.google.com/assistant/smarthome/traits/inputselector
 type CommandPreviousInput struct {
+}
+
+// CommandOpenClose requests to open the device to the specified value.
+// See https://developers.google.com/assistant/smarthome/traits/openclose
+type CommandOpenClose struct {
+	OpenPercent int     `json:"openPercent"`
+	Direction   *string `json:"openDirection,omitempty"`
+}
+
+// CommandOpenCloseRelative requests to adjust the open-close state of the device relative to the current state.
+// This command is only available if commandOnlyOpenClose is set to false.
+// See https://developers.google.com/assistant/smarthome/traits/openclose
+type CommandOpenCloseRelative struct {
+	OpenRelativePercent int     `json:"openRelativePercent"`
+	Direction           *string `json:"openDirection,omitempty"`
 }

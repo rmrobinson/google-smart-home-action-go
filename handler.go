@@ -209,10 +209,28 @@ func (s *Service) GoogleFulfillmentHandler(w http.ResponseWriter, r *http.Reques
 		}
 
 		for errCode, details := range pExecuteResp.FailedDevices {
-			commandFailResp := executeRespPayload{
-				Status:    "ERROR",
-				ErrorCode: errCode,
+			var commandFailResp executeRespPayload
+
+			switch errCode {
+			case "pinChallengeNeeded":
+				commandFailResp = executeRespPayload{
+					Status:          "ERROR",
+					ErrorCode:       "challengeNeeded",
+					ChallengeNeeded: &challengeNeeded{"pinNeeded"},
+				}
+			case "ackChallengeNeeded":
+				commandFailResp = executeRespPayload{
+					Status:          "ERROR",
+					ErrorCode:       "challengeNeeded",
+					ChallengeNeeded: &challengeNeeded{"ackNeeded"},
+				}
+			default:
+				commandFailResp = executeRespPayload{
+					Status:    "ERROR",
+					ErrorCode: errCode,
+				}
 			}
+
 			for _, id := range details.Devices {
 				commandFailResp.IDs = append(commandFailResp.IDs, id)
 			}
@@ -307,11 +325,15 @@ type executePayload struct {
 		Execution []Command      `json:"execution"`
 	} `json:"commands"`
 }
+type challengeNeeded struct {
+	Type string `json:"type"`
+}
 type executeRespPayload struct {
-	IDs       []string               `json:"ids,omitempty"`
-	Status    string                 `json:"status,omitempty"`
-	ErrorCode string                 `json:"errorCode,omitempty"`
-	States    map[string]interface{} `json:"states,omitempty"`
+	IDs             []string               `json:"ids,omitempty"`
+	Status          string                 `json:"status,omitempty"`
+	ErrorCode       string                 `json:"errorCode,omitempty"`
+	States          map[string]interface{} `json:"states,omitempty"`
+	ChallengeNeeded *challengeNeeded       `json:"challengeNeeded,omitempty"`
 }
 
 type syncResponse struct {
