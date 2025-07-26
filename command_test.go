@@ -93,6 +93,90 @@ func TestCommandUnmarshalJSON(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "openclose typical command",
+			input: `{
+				"command": "action.devices.commands.OpenClose",
+				"params": { "openPercent": 66 }
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenClose",
+				OpenClose: &CommandOpenClose{
+					OpenPercent: 66,
+				},
+			},
+		},
+		{
+			name: "openclose command with direction",
+			input: `{
+				"command": "action.devices.commands.OpenClose",
+				"params": { "openPercent": 33, "openDirection": "DOWN" 	}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenClose",
+				OpenClose: &CommandOpenClose{
+					OpenPercent: 33,
+					Direction:   ptrString("DOWN"),
+				},
+			},
+		},
+		{
+			name: "opencloserelative typical command",
+			input: `{
+				"command": "action.devices.commands.OpenCloseRelative",
+				"params": { "openRelativePercent": 5 }
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenCloseRelative",
+				OpenCloseRelative: &CommandOpenCloseRelative{
+					OpenRelativePercent: 5,
+				},
+			},
+		},
+		{
+			name: "opencloserelative command with direction",
+			input: `{
+				"command": "action.devices.commands.OpenCloseRelative",
+				"params": { "openRelativePercent": -10, "openDirection": "LEFT" }
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenCloseRelative",
+				OpenCloseRelative: &CommandOpenCloseRelative{
+					OpenRelativePercent: -10,
+					Direction:           ptrString("LEFT"),
+				},
+			},
+		},
+		{
+			name: "openclose command with ack needed challenge",
+			input: `{
+				"command": "action.devices.commands.OpenClose",
+				"params": { "openPercent": 66 },
+				"challenge": { "ack": true}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenClose",
+				OpenClose: &CommandOpenClose{
+					OpenPercent: 66,
+				},
+				Challenge: map[string]interface{}{"ack": true},
+			},
+		},
+		{
+			name: "openclose command with pin needed challenge",
+			input: `{
+				"command": "action.devices.commands.OpenClose",
+				"params": { "openPercent": 66 },
+				"challenge": { "pin": "333444"}
+			}`,
+			want: &Command{
+				Name: "action.devices.commands.OpenClose",
+				OpenClose: &CommandOpenClose{
+					OpenPercent: 66,
+				},
+				Challenge: map[string]interface{}{"pin": "333444"},
+			},
+		},
 	} {
 		t.Run(example.name, func(t *testing.T) {
 			got := &Command{}
