@@ -61,10 +61,17 @@ func (ds DeviceState) RecordColorHSV(hue float64, saturation float64, value floa
 }
 
 // RecordInput adds the current input active to the device.
-// Should only be applied to devices with the InputSelector trait
-// See https://developers.google.com/assistant/smarthome/traits/inputselector
+// Should only be applied to devices with the InputSelector trait.
+// See https://developers.home.google.com/cloud-to-cloud/traits/inputselector -
+// the Device STATES section documents the field as "currentInput"
+// ("Required. Key of the input currently in use."), not "input". Found
+// live: HomeGraph rejected ReportState for every InputSelector device
+// with "400: Request contains an invalid argument" until this was fixed -
+// the wrong key was never caught by this package's own JSON round-trip
+// test, since that only checks serialize-then-deserialize symmetry, not
+// the actual field name Google's API expects.
 func (ds DeviceState) RecordInput(input string) DeviceState {
-	ds.State["input"] = input
+	ds.State["currentInput"] = input
 	return ds
 }
 
