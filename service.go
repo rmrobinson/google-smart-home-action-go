@@ -159,21 +159,50 @@ func (s *Service) RequestSync(ctx context.Context, agentUserID string) error {
 // triggers a change on the device that is not reflected in the initial request. It is best if the underlying
 // service ensures that the Google HomeGraph is kept in sync through an explicit state update after execution.
 func (s *Service) ReportState(ctx context.Context, agentUserID string, deviceStates map[string]DeviceState) error {
-	jsonState, err := json.Marshal(deviceStates)
-	if err != nil {
-		s.logger.Info("error serializing device states to json",
-			zap.String("agent_user_id", agentUserID),
-			zap.Error(err),
-		)
+	return s.reportStateAndNotify(ctx, agentUserID, deviceStates, nil, "")
+}
+
+// ReportStateAndNotify is ReportState plus a proactive notification: notifications is indexed by
+// device ID the same way deviceStates is, and each value is the trait-keyed notification body
+// documented in the "Device NOTIFICATIONS" section of the relevant trait's reference
+// (https://developers.home.google.com/cloud-to-cloud/traits), e.g.
+// map[string]interface{}{"ObjectDetection": map[string]interface{}{"priority": 0, ...}}.
+// deviceStates may be nil/empty - some notification-only traits (ObjectDetection) report no
+// ongoing state at all. eventID is optional (per Google: "a unique identifier per event, e.g. a
+// doorbell press") and may be left empty.
+func (s *Service) ReportStateAndNotify(ctx context.Context, agentUserID string, deviceStates map[string]DeviceState, notifications map[string]interface{}, eventID string) error {
+	return s.reportStateAndNotify(ctx, agentUserID, deviceStates, notifications, eventID)
+}
+
+func (s *Service) reportStateAndNotify(ctx context.Context, agentUserID string, deviceStates map[string]DeviceState, notifications map[string]interface{}, eventID string) error {
+	device := &homegraph.ReportStateAndNotificationDevice{}
+	if len(deviceStates) > 0 {
+		jsonState, err := json.Marshal(deviceStates)
+		if err != nil {
+			s.logger.Info("error serializing device states to json",
+				zap.String("agent_user_id", agentUserID),
+				zap.Error(err),
+			)
+		}
+		device.States = jsonState
+	}
+	if len(notifications) > 0 {
+		jsonNotifications, err := json.Marshal(notifications)
+		if err != nil {
+			s.logger.Info("error serializing device notifications to json",
+				zap.String("agent_user_id", agentUserID),
+				zap.Error(err),
+			)
+		}
+		device.Notifications = jsonNotifications
 	}
 
 	call := s.deviceService.ReportStateAndNotification(&homegraph.ReportStateAndNotificationRequest{
 		AgentUserId: agentUserID,
 		RequestId:   uuid.New().String(),
+		EventId:     eventID,
 		Payload: &homegraph.StateAndNotificationPayload{
-			Devices: &homegraph.ReportStateAndNotificationDevice{
-				States: jsonState,
-			},
+			Devices: device,
 		},
 	})
 	call.Context(ctx)
